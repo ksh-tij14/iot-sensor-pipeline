@@ -1,0 +1,6 @@
+firmware/
+cloud/data/
+**/__pycache__/
+.pytest_cache/
+.git/
+*.zip

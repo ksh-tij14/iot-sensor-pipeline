@@ -1,0 +1,67 @@
+{
+  "genuine": {
+    "sent": 100,
+    "accepted": 100,
+    "false_positives": 0,
+    "false_positive_rate": 0.0,
+    "errors": []
+  },
+  "latency_ms": {
+    "mean": 114.2,
+    "p50": 111.7,
+    "p95": 131.5,
+    "p99": 134.5,
+    "max": 152.3
+  },
+  "attacks": {
+    "Packet corruption": {
+      "runs": 10,
+      "detected": 10,
+      "detection_rate": 1.0
+    },
+    "Packet injection": {
+      "runs": 10,
+      "detected": 10,
+      "detection_rate": 1.0
+    },
+    "Replay": {
+      "runs": 10,
+      "detected": 10,
+      "detection_rate": 1.0
+    },
+    "Duplication": {
+      "runs": 10,
+      "detected": 10,
+      "detection_rate": 1.0
+    },
+    "Delay / reorder": {
+      "runs": 10,
+      "detected": 10,
+      "detection_rate": 1.0
+    },
+    "Delayed delivery (stale timestamp)": {
+      "runs": 10,
+      "detected": 10,
+      "detection_rate": 1.0
+    },
+    "Gateway tamper after verification": {
+      "runs": 10,
+      "detected": 10,
+      "detection_rate": 1.0
+    },
+    "Compromised processing node": {
+      "runs": 10,
+      "detected": 10,
+      "detection_rate": 1.0
+    }
+  },
+  "overall": {
+    "attacks_sent": 80,
+    "detected": 80,
+    "missed": 0,
+    "detection_rate": 1.0,
+    "precision": 1.0,
+    "f1": 1.0
+  },
+  "duration_s": 18.0
+}

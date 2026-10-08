@@ -1,0 +1,84 @@
+{
+  // Run any of these with Ctrl+Shift+P -> "Tasks: Run Task".
+  "version": "2.0.0",
+  "options": {
+    "shell": { "executable": "powershell.exe", "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command"] }
+  },
+  "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+  "tasks": [
+    {
+      "label": "1. Start pipeline (Docker + dashboard)",
+      "type": "shell",
+      "command": "& '${workspaceFolder}\\scripts\\start-demo.ps1'",
+      "problemMatcher": [],
+      "group": { "kind": "build", "isDefault": true }
+    },
+    {
+      "label": "1b. Start pipeline + virtual board (no hardware needed)",
+      "type": "shell",
+      "command": "& '${workspaceFolder}\\scripts\\start-demo.ps1' -Virtual",
+      "problemMatcher": []
+    },
+    {
+      "label": "1c. Stop virtual board",
+      "type": "shell",
+      "command": "docker compose --profile demo stop virtual-board",
+      "options": { "cwd": "${workspaceFolder}\\docker" },
+      "problemMatcher": []
+    },
+    {
+      "label": "2. Flash board with new keys (board on USB)",
+      "type": "shell",
+      "command": "& '${workspaceFolder}\\scripts\\rotate-keys.ps1'",
+      "problemMatcher": []
+    },
+    {
+      "label": "3. Serial monitor (board on USB)",
+      "type": "shell",
+      "command": "& \"$env:USERPROFILE\\.platformio\\penv\\Scripts\\pio.exe\" device monitor -b 115200",
+      "options": { "cwd": "${workspaceFolder}\\firmware" },
+      "problemMatcher": []
+    },
+    {
+      "label": "4. Attack simulator (attacks 1-8)",
+      "type": "shell",
+      "command": "docker compose run --rm attack-simulator",
+      "options": { "cwd": "${workspaceFolder}\\docker" },
+      "problemMatcher": []
+    },
+    {
+      "label": "5. Benchmark (100 genuine, 10 runs per attack)",
+      "type": "shell",
+      "command": "docker compose run --rm attack-simulator python -m tests.benchmark --genuine 100 --runs 10",
+      "options": { "cwd": "${workspaceFolder}\\docker" },
+      "problemMatcher": []
+    },
+    {
+      "label": "6. Live logs (gateway + validation)",
+      "type": "shell",
+      "command": "docker compose logs -f --tail 50 gateway-1 gateway-2 validation",
+      "options": { "cwd": "${workspaceFolder}\\docker" },
+      "problemMatcher": []
+    },
+    {
+      "label": "7. Unit tests",
+      "type": "shell",
+      "command": "python -m pytest -q",
+      "problemMatcher": [],
+      "group": { "kind": "test", "isDefault": true }
+    },
+    {
+      "label": "8. Install Python requirements (once)",
+      "type": "shell",
+      "command": "python -m pip install -r requirements.txt",
+      "problemMatcher": []
+    },
+    {
+      "label": "9. Stop pipeline",
+      "type": "shell",
+      "command": "docker compose --profile demo down",
+      "options": { "cwd": "${workspaceFolder}\\docker" },
+      "problemMatcher": []
+    }
+  ]
+}

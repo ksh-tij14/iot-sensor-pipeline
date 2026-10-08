@@ -1,0 +1,215 @@
+# The backend services, each in its own container on one shared network:
+# two gateway instances behind a round-robin load balancer, then fork, edge,
+# cloud and validation, plus a web dashboard on http://localhost:8080.
+# Run from this folder:  docker compose up --build -d --wait
+# See docker/README.md.
+#
+# Keys and certificates: the committed dev material is used unless docker/.env
+# (written by scripts/generate_secrets.py / rotate-keys.ps1) points elsewhere.
+
+name: iot-pipeline
+
+x-service: &service
+  restart: unless-stopped
+  networks: [pipeline]
+  environment: &env
+    SERVICE_HOST: 0.0.0.0              # listen on the container's network, not just its localhost
+    FORK_URL: http://fork:8002/forward
+    EDGE_URL: http://edge:8003
+    CLOUD_URL: http://cloud:8004
+    VALIDATION_URL: http://validation:8005
+    GATEWAY_URL: http://gateway-lb:8001/ingest
+    GATEWAY_SECRET: ${GATEWAY_SECRET:-dev-gateway-secret-change-me}
+    EVENT_DB_PATH: /events/events.db   # shared, hash-chained event store
+    EVENT_LOG_KEY: ${EVENT_LOG_KEY:-dev-event-log-key-change-me}
+    KEYSTORE_PATH: /keys/keystore.json # device PUBLIC keys; mounted where needed
+    SENSOR_KEYS_PATH: /keys/sensor_keys.json   # test identities' private keys (simulator/benchmark only)
+
+x-keystore: &keystore ${KEYSTORE_FILE:-../gateway/keystore.json}:/keys/keystore.json:ro
+x-sensor-keys: &sensor-keys ${SENSOR_KEYS_FILE:-../tests/dev_sensor_keys.json}:/keys/sensor_keys.json:ro
+
+x-gateway: &gateway
+  <<: *service
+  build: { context: .., dockerfile: docker/Dockerfile, args: { SERVICE: gateway.gateway_service } }
+  image: iot-pipeline/gateway
+  volumes:
+    - gateway-state:/state             # replay counters, shared by both instances
+    - events:/events
+    - *keystore
+    - ${CERT_DIR:-./certs/dev}:/certs:ro
+  healthcheck:
+    test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/docs')"]
+    interval: 5s
+    retries: 10
+  depends_on:
+    fork: { condition: service_healthy }
+
+services:
+  # Entry point for the sensor boards: HTTPS on 8443, published to the LAN and
+  # rate-limited. Plain 8001 is for Docker-internal traffic and this PC only.
+  gateway-lb:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    networks: [pipeline]
+    ports: ["8443:8443", "127.0.0.1:8001:8001"]
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ${CERT_DIR:-./certs/dev}:/etc/nginx/certs:ro
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8001/docs"]
+      interval: 5s
+      retries: 10
+    depends_on:
+      gateway-1: { condition: service_healthy }
+      gateway-2: { condition: service_healthy }
+
+  # Two identical gateways. They share replay-protection state through one
+  # SQLite file, so a chunk accepted by one counts as a replay at the other.
+  gateway-1:
+    <<: *gateway
+    environment:
+      <<: *env
+      GATEWAY_INSTANCE: gateway-1
+      GATEWAY_COUNTER_DB: /state/counters.db
+
+  gateway-2:
+    <<: *gateway
+    environment:
+      <<: *env
+      GATEWAY_INSTANCE: gateway-2
+      GATEWAY_COUNTER_DB: /state/counters.db
+      # Also reachable directly over HTTPS, bypassing the load balancer: the
+      # boards' fallback for when the load balancer itself is down. Rate-limited
+      # in the app, since nginx isn't in front of this port.
+      GATEWAY_TLS_PORT: "8443"
+      GATEWAY_TLS_CERT: /certs/server.crt
+      GATEWAY_TLS_KEY: /certs/server.key
+      RATE_LIMIT_PER_SECOND: "5"
+      RATE_LIMIT_BURST: "20"
+    ports: ["8011:8443"]
+
+  fork:
+    <<: *service
+    build: { context: .., dockerfile: docker/Dockerfile, args: { SERVICE: fork.fork_service } }
+    image: iot-pipeline/fork
+    environment:
+      <<: *env
+      FORK_COUNTER_DB: /state/fork_counters.db   # replay counters survive restarts
+    volumes:
+      - fork-state:/state
+      - events:/events
+      - *keystore
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/docs')"]
+      interval: 5s
+      retries: 10
+    depends_on:
+      edge: { condition: service_healthy }
+      cloud: { condition: service_healthy }
+      validation: { condition: service_healthy }
+
+  edge:
+    <<: *service
+    build: { context: .., dockerfile: docker/Dockerfile, args: { SERVICE: edge.edge_service } }
+    image: iot-pipeline/edge
+    volumes: ["events:/events"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8003/docs')"]
+      interval: 5s
+      retries: 10
+
+  cloud:
+    <<: *service
+    build: { context: .., dockerfile: docker/Dockerfile, args: { SERVICE: cloud.cloud_service } }
+    image: iot-pipeline/cloud
+    environment:
+      <<: *env
+      CLOUD_DB_PATH: /data/raw_chunks.db
+    volumes:
+      - cloud-data:/data               # signed backups survive restarts and rebuilds
+      - events:/events
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8004/docs')"]
+      interval: 5s
+      retries: 10
+
+  validation:
+    <<: *service
+    build: { context: .., dockerfile: docker/Dockerfile, args: { SERVICE: validation.validation_service } }
+    image: iot-pipeline/validation
+    environment:
+      <<: *env
+      VALIDATION_STATE_DB: /state/validation.db  # anomaly history survives restarts
+    volumes:
+      - validation-state:/state
+      - events:/events
+      - *keystore                      # to re-verify backups before recovery
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8005/docs')"]
+      interval: 5s
+      retries: 10
+    depends_on:
+      cloud: { condition: service_healthy }
+
+  # Web dashboard. Published on localhost only: it can launch the attack
+  # simulator, so it shouldn't be reachable by others on the hotspot.
+  dashboard:
+    <<: *service
+    build: { context: .., dockerfile: docker/Dockerfile, args: { SERVICE: dashboard.dashboard_service } }
+    image: iot-pipeline/dashboard
+    environment:
+      <<: *env
+      DEVICE_ID: esp32-001
+      HEALTH_TARGETS: gateway-lb=http://gateway-lb:8001,gateway-1=http://gateway-1:8001,gateway-2=http://gateway-2:8001,fork=http://fork:8002,edge=http://edge:8003,cloud=http://cloud:8004,validation=http://validation:8005
+    volumes:
+      - events:/events
+      - *keystore
+      - *sensor-keys
+    ports: ["127.0.0.1:8080:8080"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/')"]
+      interval: 5s
+      retries: 10
+    depends_on:
+      gateway-lb: { condition: service_healthy }
+
+  # A software stand-in for the ESP8266 (its own identity, esp32-002), for demos
+  # without the board. Signs and sends over HTTPS exactly like the firmware.
+  # Started by scripts/start-demo.ps1 -Virtual, or:
+  #   docker compose --profile demo up -d virtual-board
+  virtual-board:
+    <<: *service
+    image: iot-pipeline/gateway        # same code, just a different command
+    profiles: [demo]
+    volumes:
+      - virtual-board-state:/state
+      - *sensor-keys
+      - ${CERT_DIR:-./certs/dev}:/certs:ro
+    command: python -m tests.virtual_board
+    depends_on:
+      gateway-lb: { condition: service_healthy }
+
+  # Not started by `up`. Run on demand, inside the network, so it can reach the
+  # fork and validation (not published):  docker compose run --rm attack-simulator
+  attack-simulator:
+    <<: *service
+    image: iot-pipeline/gateway        # same code, just a different command
+    restart: "no"
+    profiles: [tools]
+    volumes:
+      - *keystore
+      - *sensor-keys
+    command: python -m tests.attack_simulator --script-only
+    depends_on:
+      gateway-lb: { condition: service_healthy }
+
+networks:
+  pipeline:
+
+volumes:
+  cloud-data:
+  gateway-state:
+  fork-state:
+  validation-state:
+  virtual-board-state:
+  events:
