@@ -22,7 +22,9 @@ from typing import Optional
 
 EVENT_DB_PATH = os.environ.get("EVENT_DB_PATH")
 EVENT_LOG_KEY = os.environ.get("EVENT_LOG_KEY", "dev-event-log-key-change-me").encode("utf-8")
-KEEP_EVENTS = 20000          # older events are pruned so the file doesn't grow forever
+# Older events are pruned so the file doesn't grow forever. ~250k entries is
+# about 8 hours with the board and the virtual board at 2 s each (~95 MB).
+KEEP_EVENTS = 250_000
 GENESIS = "0" * 64
 FIELDS = ("time", "service", "event", "hop", "sensor_id", "counter", "chunk_id", "reason", "details")
 
@@ -31,6 +33,11 @@ def _connect(path: str) -> sqlite3.Connection:
     Path(path).parent.mkdir(parents=True, exist_ok=True)
     db = sqlite3.connect(path, timeout=5, isolation_level=None)   # explicit transactions below
     db.row_factory = sqlite3.Row
+    # WAL: readers (the dashboard, every second) never block writers, and a
+    # write is one append instead of journal + database syncs. In the default
+    # mode one slow sync stalled every service for 5 s (a 1-hour run).
+    db.execute("PRAGMA journal_mode=WAL")
+    db.execute("PRAGMA synchronous=NORMAL")   # safe in WAL: a crash may lose the last entries, never corrupts
     db.execute("""
         CREATE TABLE IF NOT EXISTS events (
             id         INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -61,3 +61,15 @@ def test_concurrent_writers_keep_one_chain(tmp_path):
     r = verify_chain(path, key=KEY)
     assert r["ok"] and r["checked"] == 40
     assert len(read_events(path, limit=100)) == 40
+
+
+def test_store_uses_wal_so_readers_never_block_writers(tmp_path):
+    import sqlite3
+    path = str(tmp_path / "events.db")
+    record_event("gateway", "accepted", "sensor-gateway", {}, path=path, key=b"k")
+    reader = sqlite3.connect(path)
+    reader.execute("BEGIN")
+    reader.execute("SELECT COUNT(*) FROM events").fetchone()          # an open read transaction
+    record_event("gateway", "accepted", "sensor-gateway", {}, path=path, key=b"k")   # must not wait
+    reader.rollback()
+    assert reader.execute("PRAGMA journal_mode").fetchone()[0] == "wal"
