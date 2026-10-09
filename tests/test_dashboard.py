@@ -157,3 +157,13 @@ def test_devices_list_and_selection(event_db, monkeypatch):
     client.get("/api/readings", params={"device": "esp32-002"})
     assert seen == ["esp32-002", "esp32-002"]
     assert client.get("/api/overview", params={"device": "esp32-003"}).status_code == 400
+
+
+def test_page_needs_no_internet():
+    # Fonts and Chart.js are served locally: on a slow hotspot a CDN stalled the page for 30 s+.
+    client = TestClient(dashboard_service.app)
+    page = client.get("/").text
+    assert "https://" not in page
+    for asset in ["/static/vendor/chart.umd.js", "/static/vendor/fonts.css",
+                  "/static/vendor/plus-jakarta-sans-latin.woff2", "/static/vendor/material-symbols-outlined.woff2"]:
+        assert client.get(asset).status_code == 200, asset

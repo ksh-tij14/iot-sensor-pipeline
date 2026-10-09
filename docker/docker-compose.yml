@@ -48,7 +48,7 @@ services:
   # Entry point for the sensor boards: HTTPS on 8443, published to the LAN and
   # rate-limited. Plain 8001 is for Docker-internal traffic and this PC only.
   gateway-lb:
-    image: nginx:1.27-alpine
+    image: nginx:1.27.5-alpine    # >= 1.27.3 for upstream "resolve"
     restart: unless-stopped
     networks: [pipeline]
     ports: ["8443:8443", "127.0.0.1:8001:8001"]

@@ -67,9 +67,9 @@ document.querySelectorAll("[data-goto]").forEach((c) => c.addEventListener("clic
 const chart = new Chart($("telemetryChart"), {
   type: "line",
   data: { labels: [], datasets: [
-    { label: "Temperature (°C)", data: [], borderColor: "#000000", backgroundColor: "rgba(0,0,0,.04)", borderWidth: 2, tension: 0.25, pointRadius: 0, fill: true, yAxisID: "y" },
-    { label: "Feels like (°C)", data: [], borderColor: "#f59e0b", borderDash: [6, 4], borderWidth: 2, tension: 0.25, pointRadius: 0, yAxisID: "y" },
-    { label: "Humidity (%)", data: [], borderColor: "#10b981", borderWidth: 2, tension: 0.25, pointRadius: 0, yAxisID: "y1" },
+    { label: "Temperature (°C)", data: [], borderColor: "#000000", backgroundColor: "rgba(0,0,0,.04)", borderWidth: 2, tension: 0, pointRadius: 0, fill: true, yAxisID: "y" },
+    { label: "Feels like (°C)", data: [], borderColor: "#f59e0b", borderDash: [6, 4], borderWidth: 2, tension: 0, pointRadius: 0, yAxisID: "y" },
+    { label: "Humidity (%)", data: [], borderColor: "#10b981", borderWidth: 2, stepped: "middle", pointRadius: 0, yAxisID: "y1" },
   ] },
   options: {
     responsive: true, maintainAspectRatio: false, animation: false,
@@ -164,6 +164,16 @@ async function refreshOverview() {
   renderChain(o);
 }
 
+function fitAxis(axis, values, minSpan) {
+  const v = values.filter((x) => typeof x === "number");
+  if (!v.length) { delete axis.min; delete axis.max; return; }
+  const lo = Math.min(...v), hi = Math.max(...v);
+  const span = Math.max(minSpan, (hi - lo) * 1.4);
+  const mid = (lo + hi) / 2;
+  axis.min = Math.floor(mid - span / 2);
+  axis.max = Math.ceil(mid + span / 2);
+}
+
 async function refreshReadings() {
   const r = await api(`/api/readings?limit=60&${deviceQuery()}`);
   // Only the latest session: readings within 10 minutes of the newest one, so
@@ -175,6 +185,10 @@ async function refreshReadings() {
   chart.data.datasets[0].data = rows.map((x) => x.result.temp_c);
   chart.data.datasets[1].data = rows.map((x) => x.result.heat_index_c);
   chart.data.datasets[2].data = rows.map((x) => x.result.humidity_pct);
+  // The DHT11 reports whole units, so a tight auto-fitted axis turns a normal
+  // 1-unit step into a cliff. Keep a minimum span, centred on the data, with padding.
+  fitAxis(chart.options.scales.y, [...chart.data.datasets[0].data, ...chart.data.datasets[1].data], 4);
+  fitAxis(chart.options.scales.y1, chart.data.datasets[2].data, 10);
   chart.update();
 }
 
