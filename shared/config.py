@@ -48,9 +48,10 @@ MAX_CLOCK_SKEW_SECONDS: int = 60
 
 
 # How often an ESP32 batches readings into one SignedChunk.
-# 5 s is a balance: near-real-time for dashboards, but few enough chunks that
-# signing, Wi-Fi transmission and NVS counter writes (flash wear) stay cheap.
-CHUNK_INTERVAL_SECONDS: int = 5
+# 2 s: near-real-time on the dashboard. The floor is the DHT11 (at most one
+# reading per second) plus ~130 ms of ECDSA signing and the HTTPS round trip.
+# Each reading costs one flash write for the counter (wear-levelled by LittleFS).
+CHUNK_INTERVAL_SECONDS: int = 2
 
 # Max relative difference when validation compares edge vs. cloud results
 # (0.02 = 2%). Tolerance rather than exact equality, because floating-point
@@ -80,7 +81,7 @@ VALIDATION_URL: str = os.environ.get("VALIDATION_URL", f"http://127.0.0.1:{VALID
 # Anomaly check in validation: flag a reading more than ANOMALY_STDDEV_THRESHOLD
 # standard deviations from the mean of the last ANOMALY_WINDOW readings of the
 # same type from the same sensor.
-# - 20 readings = the last ~100 s at the 5 s interval: recent enough to follow
+# - 20 readings = the last ~40 s at the 2 s interval: recent enough to follow
 #   slow changes (a room warming up), long enough for a stable mean.
 # - 3 standard deviations is the classic outlier threshold (~0.3% of normal
 #   readings would exceed it by chance).
@@ -101,7 +102,7 @@ ANOMALY_MIN_HISTORY: int = 5
 SERVICE_HOST: str = os.environ.get("SERVICE_HOST", "127.0.0.1")
 
 # Per-client rate limit on network-facing entry points (requests/second and
-# burst). A device sends one request every 5 s; 5/s with a burst of 20 leaves
+# burst). A device sends one request every 2 s; 5/s with a burst of 20 leaves
 # room for retries and demos while stopping floods. Unset = no limit (tests,
 # local runs). The load balancer applies the same limit with nginx.
 RATE_LIMIT_PER_SECOND: float = float(os.environ.get("RATE_LIMIT_PER_SECOND", "0")) or 0.0

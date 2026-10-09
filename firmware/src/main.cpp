@@ -36,10 +36,11 @@
 // bypassing the Docker load balancer; ideally a gateway on a second machine.
 // Set to "" to disable.
 #define GATEWAY_URL_FALLBACK "https://10.114.82.135:8011/ingest"
-#define CHUNK_INTERVAL_SECONDS 5  // mirrors CHUNK_INTERVAL_SECONDS in shared/config.py
+#define CHUNK_INTERVAL_SECONDS 2  // mirrors CHUNK_INTERVAL_SECONDS in shared/config.py
 
 // If the primary gateway can't be connected to within this time, try the
-// fallback. Short, so both attempts fit comfortably in one 5 s interval.
+// fallback. Short, so a dead primary costs little; if both attempts outlast
+// the 2 s interval, the next reading simply starts late (none is skipped).
 #define GATEWAY_CONNECT_TIMEOUT_MS 1500
 #define GATEWAY_RESPONSE_TIMEOUT_MS 5000
 

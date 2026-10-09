@@ -74,7 +74,7 @@ The original design also had two structural gaps:
 
 **The integrity chain, step by step:**
 
-1. **The device signs.** The firmware reads the DHT11 every 5 s, increments a
+1. **The device signs.** The firmware reads the DHT11 every 2 s, increments a
    counter saved in flash, and signs `{sensor_id, timestamp, counter, data}`
    with **ECDSA P-256** using a private key that exists only on the device. It
    sends over **HTTPS**, pinning the gateway's public key, so nothing on the

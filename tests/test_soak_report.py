@@ -1,6 +1,7 @@
 import sqlite3
 
 from shared.events import record_event
+from tests import soak_report as soak
 from tests.soak_report import soak_report
 
 
@@ -10,7 +11,8 @@ def _set_time(path, times):
             db.execute("UPDATE events SET time = ? WHERE id = ?", (t, i))
 
 
-def test_soak_report_counts_gaps_and_skipped_counters(tmp_path):
+def test_soak_report_counts_gaps_and_skipped_counters(tmp_path, monkeypatch):
+    monkeypatch.setattr(soak, "INTERVAL_SECONDS", 5)
     path = str(tmp_path / "events.db")
     counters = [10, 11, 12, 15, 16]                 # 13 and 14 consumed by failed sends
     times = [1000, 1005, 1010, 1030, 1035]          # one 20 s gap
@@ -19,7 +21,7 @@ def test_soak_report_counts_gaps_and_skipped_counters(tmp_path):
     _set_time(path, times)
     r = soak_report(path, "esp32-001", hours=1, now=1040)
     assert r["accepted"] == 5 and r["expected"] == 8
-    assert r["gaps_over_10s"] == 1 and r["longest_gap_s"] == 20
+    assert r["gaps_over_2_intervals"] == 1 and r["longest_gap_s"] == 20
     assert r["counter_values_skipped"] == 2 and r["counter_monotonic"] is True
 
 

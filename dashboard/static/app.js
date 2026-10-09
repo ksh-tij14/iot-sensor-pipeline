@@ -175,7 +175,7 @@ function fitAxis(axis, values, minSpan) {
 }
 
 async function refreshReadings() {
-  const r = await api(`/api/readings?limit=60&${deviceQuery()}`);
+  const r = await api(`/api/readings?limit=300&${deviceQuery()}`);
   // Only the latest session: readings within 10 minutes of the newest one, so
   // old runs from hours or days ago don't squash the live trace.
   const all = r.readings.filter((x) => x.result && x.timestamp);
@@ -441,5 +441,5 @@ $("btn-refresh").addEventListener("click", () => { tick(true); safe(refreshHealt
 setInterval(() => { $("top-clock").textContent = new Date().toLocaleTimeString(); }, 1000);
 
 tick(true); safe(refreshHealth);
-setInterval(() => tick(false), 2500);
+setInterval(() => tick(false), 1000);   // readings arrive every 2 s
 setInterval(() => { if (!paused) safe(refreshHealth); }, 5000);

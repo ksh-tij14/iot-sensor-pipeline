@@ -20,7 +20,7 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from shared.config import CLOUD_URL, EDGE_URL, FORK_URL, GATEWAY_URL, SERVICE_HOST, VALIDATION_URL
+from shared.config import CHUNK_INTERVAL_SECONDS, CLOUD_URL, EDGE_URL, FORK_URL, GATEWAY_URL, SERVICE_HOST, VALIDATION_URL
 from shared.events import count_events, read_events, verify_chain
 from shared.service_utils import run_service
 from tests import attack_simulator, benchmark
@@ -30,7 +30,7 @@ STATIC = Path(__file__).parent / "static"
 EVENT_DB_PATH = os.environ.get("EVENT_DB_PATH", "")
 DEVICE_ID = os.environ.get("DEVICE_ID", "esp32-001")   # the physical sensor board
 VIRTUAL_DEVICE_ID = os.environ.get("VIRTUAL_DEVICE_ID", "esp32-002")  # tests/virtual_board.py
-DEVICE_ONLINE_SECONDS = 15                              # 3 missed 5 s intervals = offline
+DEVICE_ONLINE_SECONDS = max(8, 4 * CHUNK_INTERVAL_SECONDS)   # 4 missed intervals = offline
 # The devices the dashboard can show. Attack-simulator traffic (its own identity) never appears here.
 DEVICES = {DEVICE_ID: "physical", VIRTUAL_DEVICE_ID: "virtual"}
 

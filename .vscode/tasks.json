@@ -33,6 +33,13 @@
       "problemMatcher": []
     },
     {
+      "label": "2b. Upload firmware, keep keys (board on USB)",
+      "type": "shell",
+      "command": "& \"$env:USERPROFILE\\.platformio\\penv\\Scripts\\pio.exe\" run -e nodemcuv2 -t upload",
+      "options": { "cwd": "${workspaceFolder}\\firmware" },
+      "problemMatcher": []
+    },
+    {
       "label": "3. Serial monitor (board on USB)",
       "type": "shell",
       "command": "& \"$env:USERPROFILE\\.platformio\\penv\\Scripts\\pio.exe\" device monitor -b 115200",

@@ -71,7 +71,7 @@ powershell -ExecutionPolicy Bypass -File scripts\start-demo.ps1 -FixFirmware
 ### 3. Power the board
 
 Plug it into USB or a power bank. Within about 20 seconds it joins the hotspot
-and starts sending a signed reading every 5 seconds over HTTPS.
+and starts sending a signed reading every 2 seconds over HTTPS.
 
 ### 4. Watch the readings arrive
 
@@ -144,7 +144,7 @@ Stored data (backups, results, counters, event log) is kept. To wipe it, use
 ## No board? Use the virtual sensor board
 
 `tests/virtual_board.py` is a software stand-in for the ESP8266. It has its own
-identity (`esp32-002`) and ECDSA key, and every 5 seconds signs a simulated
+identity (`esp32-002`) and ECDSA key, and every 2 seconds signs a simulated
 reading and sends it over HTTPS through the gateway, so it passes every check a
 real reading does. The dashboard's device menu (top bar) shows both boards;
 **Auto** shows the physical board when it's live, otherwise the virtual one.
@@ -192,7 +192,7 @@ python -m pytest -q
 | Board prints `No valid private key` | Run `rotate-keys.ps1` |
 | Board prints `WiFi not connected` | Hotspot off, on 5 GHz, or the password changed (`firmware/include/secrets.h`) |
 | Board prints `DHT11 read failed` | Check the data wire is on **D2** and pushed in firmly |
-| Dashboard shows the board **offline** | It hasn't been accepted for 15 s: check its power, the hotspot and the output above |
+| Dashboard shows the board **offline** | It hasn't been accepted for 8 s: check its power, the hotspot and the output above |
 | `rotate-keys.ps1` says no board found | Plug the board into this PC by USB (not a power bank) |
 | PowerShell refuses to run a script | Use the full `powershell -ExecutionPolicy Bypass -File ...` form |
 | `pio` isn't recognised | Use the full path: `& "$env:USERPROFILE\.platformio\penv\Scripts\pio.exe"` |

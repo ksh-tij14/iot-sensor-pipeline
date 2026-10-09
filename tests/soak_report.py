@@ -14,9 +14,10 @@ import json
 import os
 import time
 
+from shared.config import CHUNK_INTERVAL_SECONDS
 from shared.events import read_events
 
-INTERVAL_SECONDS = 5
+INTERVAL_SECONDS = CHUNK_INTERVAL_SECONDS
 
 
 def soak_report(path: str, sensor_id: str, hours: float, now: float = None) -> dict:
@@ -47,7 +48,7 @@ def soak_report(path: str, sensor_id: str, hours: float, now: float = None) -> d
         "delivery_rate": round(len(accepted) / expected, 4),
         "validated": len(validated),
         "rejected": len(rejected),
-        "gaps_over_10s": len(long_gaps),
+        "gaps_over_2_intervals": len(long_gaps),
         "longest_gap_s": round(max(gaps), 1) if gaps else 0.0,
         "counter_values_skipped": skipped,   # consumed by failed sends: allowed, never reused
         "counter_monotonic": all(b > a for a, b in zip(counters, counters[1:])),

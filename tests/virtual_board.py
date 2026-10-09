@@ -1,6 +1,6 @@
 """Virtual sensor board: a software stand-in for the ESP8266, for demos without hardware.
 
-It behaves exactly like the firmware: every 5 s it takes a (simulated) DHT11
+It behaves exactly like the firmware: every 2 s it takes a (simulated) DHT11
 reading, increments a persisted counter, signs the canonical bytes with its own
 ECDSA P-256 private key, and POSTs the chunk over HTTPS to the gateway, checking
 the gateway's certificate. It goes through every check a real reading does.
@@ -21,11 +21,11 @@ from pathlib import Path
 
 import httpx
 
-from shared.config import load_sensor_private_keys
+from shared.config import CHUNK_INTERVAL_SECONDS, load_sensor_private_keys
 from shared.crypto_utils import ecdsa_sign
 from shared.schemas import SignedChunk
 
-INTERVAL_SECONDS = 5
+INTERVAL_SECONDS = CHUNK_INTERVAL_SECONDS   # same as the firmware
 # Counters for this identity start above anything earlier test runs used, and
 # are persisted so a restart never reuses one (like the board's flash counter).
 COUNTER_FLOOR = 3_000_000_000
