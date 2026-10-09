@@ -195,7 +195,7 @@ In VS Code, every step is a task: **Ctrl+Shift+P → Tasks: Run Task**.
 | Rate limiting | A 40-request burst: first 20 served, the rest `429` |
 | Revocation | Revoked device refused (`403`) from the next request, restored likewise, no restart |
 | Event log | Hash chain verified intact; edits, deletions and re-hashing without the key detected (tests) |
-| Real hardware | NodeMCU ESP8266 + DHT11 with the ECDSA + TLS firmware: readings accepted end to end over HTTPS (`HTTP 200`), ECDSA signing 127–128 ms per reading at 160 MHz; 41.1% flash, 37.9% RAM. Long-run figures: `tests/soak_report.py` |
+| Real hardware | NodeMCU ESP8266 + DHT11 with the ECDSA + TLS firmware: readings accepted end to end over HTTPS (`HTTP 200`), a reading every 2 s; ECDSA signing 127–128 ms and sending ~0.5 s per reading (TLS session resumption; ~1.1 s with a full handshake) at 160 MHz; 41.1% flash, 37.9% RAM. Long-run figures: `tests/soak_report.py` |
 
 ## Repository layout
 

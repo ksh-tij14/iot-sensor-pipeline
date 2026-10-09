@@ -211,6 +211,11 @@ int postChunk(const char* url, const char* body) {
   // Not setKnownKey(): the core's public-key pinning rejects valid ECDSA
   // ServerKeyExchange signatures (TLS error 27). Pinning the certificate works.
   client.setFingerprint(GATEWAY_TLS_FINGERPRINT);
+  // Resume the previous TLS session with this gateway: skips the ECDHE + ECDSA
+  // handshake maths (~1 s at 160 MHz). The session was authenticated, with the
+  // fingerprint check, by the full handshake that created it.
+  static BearSSL::Session primarySession, fallbackSession;
+  client.setSession(strcmp(url, GATEWAY_URL) == 0 ? &primarySession : &fallbackSession);
   // The ESP8266 client has a single timeout covering connect and response.
   http.setTimeout(GATEWAY_RESPONSE_TIMEOUT_MS);
   http.begin(client, url);
@@ -230,6 +235,11 @@ int postChunk(const char* url, const char* body) {
   }
 #endif
   http.end();
+#if defined(ESP8266)
+  // The core saves the TLS session for resumption only in stop(); http.end()
+  // skips it when the server has already closed the connection.
+  client.stop();
+#endif
   return status;
 }
 
